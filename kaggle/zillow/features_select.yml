@@ -1,0 +1,28 @@
+# This yaml file specifies how to subset a df of the zillow training data
+# Each main name will the the file (pkl) under which the subsetted df
+# will be stored
+#
+
+features_1st:
+    features: land_use_type, census_tract_block_raw, county_id, num_rooms, fips, num_bathrooms, logerror, num_bedrooms, tax_total, tax_land, county_land_use_code, tax_total_year, tax_built, area_living_calc, year_built, num_bathrooms_calc, city_id, area_living, area_lot
+    transform:
+        land_use_type: onehot
+        census_tract_block_raw: normalize
+        county_id: normalize
+        num_rooms: normalize
+        fips: normalize
+        num_bathrooms: normalize
+        num_bedrooms: normalize
+        tax_total: normalize
+        tax_land: normalize
+        county_land_use_code: normalize
+        tax_total_year: normalize
+        tax_built: normalize
+        area_living_calc: normalize
+        year_built: normalize
+        num_bathrooms_calc: normalize
+        city_id: normalize
+        area_living: normalize
+        area_lot: normalize
+
+
