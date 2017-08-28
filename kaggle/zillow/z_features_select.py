@@ -18,7 +18,7 @@ merged_2016_pkl = 'merged_2016_v2.pkl'
 def open_merged(pkl_fn):
     return pd.read_pickle(pkl_fn)
 
-def process_yaml(fn, full_df):
+def split_df(fn, full_df):
     ''' This function will read in a full (pickled) dataframe and store
         many sub-setted dataframes (in pickle) as specified in the yaml file.'''
     cwd = os.getcwd()
@@ -39,12 +39,12 @@ def process_yaml(fn, full_df):
         sub_df.to_pickle(sub_fn)
 
 
-def trans_onehot(df, feature):
-    print('In one hot with feature: {}'.format(feature))
+def trans_onehot(df, feature, trans_type):
+    print('In one hot with feature: {} and trans_type {}'.format(feature, trans_type))
 
 
-def trans_normalize(df, feature):
-    print('In normalize with feature: {}'.format(feature))
+def trans_normalize(df, feature, trans_type):
+    print('In normalize with feature: {} and trans_type {}'.format(feature, trans_type))
 
 
 transform_mappings = {
@@ -54,7 +54,8 @@ transform_mappings = {
 
 def transform_feature(df, feature, trans_type):
     print('Transforming feature: {} to transform type: {}'.format(feature, trans_type))
-    transform_mappings[trans_type](df, feature)
+    tt_key = list(trans_type.keys())[0]    # Not sure if there is a simpler way to do this
+    transform_mappings[tt_key](df, feature, trans_type)
 
 
 def features_transform(yaml_fn):
@@ -70,10 +71,11 @@ def features_transform(yaml_fn):
         sub_df = pd.read_pickle(fname+'.pkl')
         # Now go through each feature and transform it
         for feature, trans_type in fdict['transform'].items():
+
             transform_feature(sub_df, feature, trans_type)
 
 if __name__ == '__main__':
     zdf = open_merged(merged_2016_pkl)
-    # process_yaml(yaml_file, zdf)
+    # split_df(yaml_file, zdf)
     features_transform(yaml_file)
 
