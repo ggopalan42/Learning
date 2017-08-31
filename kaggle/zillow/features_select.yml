@@ -15,6 +15,9 @@
 
 features_1st:
     features: land_use_type, census_tract_block_raw, county_id, num_rooms, fips, num_bathrooms, logerror, num_bedrooms, tax_total, tax_land, county_land_use_code, tax_total_year, tax_built, area_living_calc, year_built, num_bathrooms_calc, city_id, area_living, area_lot
+    train_test_split:
+        split_ratio: 0.3
+        random_state: 42
     transform:
         land_use_type:
             onehot: some-junk-for-now
