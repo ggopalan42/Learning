@@ -52,13 +52,14 @@ os.environ["CUDA_VISIBLE_DEVICES"]="1" # (or "0" or "" for no-GPU)
 # MODEL_PATH                    Path where model files are stored
 # MODEL_NAME                    Name of the model files
 #------------------------------------------------------------------------------
-TSA_BASE_DIR = '/home2/ggopalan/work/datasets/k/T'
+HOME_DIR = os.path.expanduser('~')
+TSA_BASE_DIR = os.path.join(HOME_DIR, 'work/datasets/kaggle/TSA')
 TSA_DATA_BASE_DIR = os.path.join(TSA_BASE_DIR, 'stage1/inputs')
-BODY_ZONES =        os.path.join(TSA_DATA_BASE_DIR, 'body_zones.png')
-THREAT_LABELS =     os.path.join(TSA_DATA_BASE_DIR, 'stage1_labels.csv')
-INPUT_FOLDER             = os.path.join(TSA_DATA_BASE_DIR, 'aps')
-DATASET_OPTION           = {'all_labelled': 0, 'all': 0, 'expt1': 1}
-STAGE1_LABELS            = os.path.join(TSA_DATA_BASE_DIR, 'stage1_labels.csv')
+BODY_ZONES = os.path.join(TSA_DATA_BASE_DIR, 'body_zones.png')
+THREAT_LABELS = os.path.join(TSA_DATA_BASE_DIR, 'stage1_labels.csv')
+INPUT_FOLDER = os.path.join(TSA_DATA_BASE_DIR, 'aps')
+DATASET_OPTION = {'all_labelled': 0, 'all': 0, 'expt1': 1}
+STAGE1_LABELS = os.path.join(TSA_DATA_BASE_DIR, 'stage1_labels.csv')
 THREAT_ZONE = 1
 BATCH_SIZE = 16
 EXAMPLES_PER_SUBJECT = 182
@@ -71,6 +72,7 @@ TEST_SET_FILE_LIST = []
 IMAGE_DIM = 250
 LEARNING_RATE = 1e-3
 N_TRAIN_STEPS = 1
+OUTPUT_PATH = os.path.join(TSA_BASE_DIR, 'stage1/outputs/')
 TRAIN_PATH = os.path.join(TSA_BASE_DIR, 'stage1/outputs/tsa_logs/train/')
 MODEL_PATH = os.path.join(TSA_BASE_DIR, 'stage1/outputs/tsa_logs/model/')
 MODEL_NAME = ('tsa-{}-lr-{}-{}-{}-tz-{}'.format('alexnet-v0.1', LEARNING_RATE, 
@@ -414,10 +416,13 @@ def alexnet(width, height, lr):
 # ## The Trainer
 #-----------------------------------------------------------------------------
 # train_conv_net(): runs the train op
-# parameters:      none
+# parameters:      preprocessed_data_folder: dir where preprocessed files are 
+#                                            stored
+#                  data_option: The type of preprocessed data to use in training
+#                  output_folder: If provided, will save the model in this dir
 # returns:         none
 #-----------------------------------------------------------------------------
-def train_conv_net(preprocessed_data_folder, data_option):
+def train_conv_net(preprocessed_data_folder, data_option, output_model=None):
     
     val_features = []
     val_labels = []
@@ -454,12 +459,12 @@ def train_conv_net(preprocessed_data_folder, data_option):
             feature_batch, label_batch = input_pipeline(f_in, 
                                                      preprocessed_data_folder)
             feature_batch = feature_batch.reshape(-1, IMAGE_DIM, IMAGE_DIM, 1)
-            #print ('Feature Batch Shape ->', feature_batch.shape)                
+            print ('Feature Batch Shape ->', feature_batch.shape)                
             # run the fit operation
-            # print('Test set size: {}'.format(len(TEST_SET_FILE_LIST)))
-            # print('Train set size: {}'.format(len(TRAIN_SET_FILE_LIST)))
-            # print('Validation size: {}'.format(len(val_features)))
-            # print('Train size: {}'.format(len(feature_batch)))
+            print('Test set size: {}'.format(len(TEST_SET_FILE_LIST)))
+            print('Train set size: {}'.format(len(TRAIN_SET_FILE_LIST)))
+            print('Validation size: {}'.format(len(val_features)))
+            print('Train size: {}'.format(len(feature_batch)))
 
             # Run only on GPU1
             model.fit({'features': feature_batch}, {'labels': label_batch}, 
@@ -468,9 +473,24 @@ def train_conv_net(preprocessed_data_folder, data_option):
                                       {'labels': val_labels}), 
                       shuffle=True, snapshot_step=None, show_metric=True, 
                       run_id=MODEL_NAME)
+    if output_model:
+        print('Saving trained model to: {}'.format(output_model))
+        model.save(output_model)
             
 # unit test -----------------------------------
 # train_conv_net()
+
+def load_subjects_for_prediction():
+    ''' This returns the subject lists for which predictions need to be made '''
+
+    # Get list of labelled images
+    df = pd.read_csv(STAGE1_LABELS)
+    df['Subject'], df['Zone'] = df['Id'].str.split('_',1).str
+    labelled_list = df['Subject'].unique()
+
+    all_list = [os.path.splitext(subject)[0] 
+                                     for subject in os.listdir(INPUT_FOLDER)]
+    return list(set(all_list) - set(labelled_list))
 
 if __name__ == '__main__':
 
@@ -487,6 +507,9 @@ if __name__ == '__main__':
 
     # preprocess_tsa_data(preprocessed_data_folder, data_option)
     # get_train_test_file_list(preprocessed_data_folder, data_option)
-    train_conv_net(preprocessed_data_folder, data_option)
+    model_file_name = '{}-tz-{}.{}'.format(data_option, THREAT_ZONE, 'tflearn')
+    model_save_file = os.path.join(OUTPUT_PATH, model_file_name)
+    # train_conv_net(preprocessed_data_folder, data_option, model_save_file)
 
-
+    subjects_for_predictions = load_test_set()
+    # predict_threats(
