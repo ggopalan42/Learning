@@ -23,12 +23,14 @@ logging.basicConfig(level=logging.INFO)
 
 def main():
     ''' Main program '''
-    start_int = 1000
+    start_int = 0
     logging.info('Start processing class desc csv file')
     with open (CHALLENGE_CLASS_DESC_INT_MAP_FILE, 'wt') as write_fh:
         with open(CHALLENGE_CLASS_DESC_FILE) as read_fh:
             for line in read_fh:
-                line_out = '{},{}'.format(line.split(',')[0], start_int)
+                line = line.strip()
+                line_out = '{},{},{}'.format(line.split(',')[0], 
+                                            line.split(',')[1], start_int)
                 start_int += 1
                 write_fh.write('{}\n'.format(line_out))
     logging.info('Done processing class desc csv file')

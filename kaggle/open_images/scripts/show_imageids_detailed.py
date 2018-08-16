@@ -10,6 +10,7 @@ from collections import OrderedDict, defaultdict
 
 # Local imports
 import oi_utils
+from aspectawarepreprocessor import AspectAwarePreprocessor
 
 # Challenge datasets constants
 BASE_DIR = '/data/fast1/'
@@ -48,6 +49,14 @@ COLORS = {
             'Green': (0, 255, 0),
             'Blue': (255, 0, 0),
          }
+
+# Image constants
+IMAGE_SHOW_WINDOW_X = 500
+IMAGE_SHOW_WINDOW_Y = 100
+MAX_SHOW_SUB_IMG = 20
+
+SHOW_PREPROCESS = True
+
 
 # Set logging level
 logging.basicConfig(level=logging.INFO)
@@ -102,7 +111,68 @@ def get_denormalized_bbox(image, bbox_str):
     return (label, int(xmin * image_xmax), int(xmax * image_xmax), 
                              int(ymin * image_ymax), int(ymax * image_ymax))
 
-def show_images_with_bbox(csv_info, images_dict):
+def get_main_and_sub_images(image, bounding_boxes): 
+    ''' This will add the bbox rectangle and label to the image.
+        It will further crop individual bbox images and return them '''
+
+    sub_images = {}
+    image_copy = image.copy()
+    for i, bbox_str in enumerate(bounding_boxes):
+        # Get the labels and rectangle for each bbox 
+        label, startX, endX, startY, endY =       \
+                                  get_denormalized_bbox(image, bbox_str)
+        # Annotate the main image
+        cv2.rectangle(image_copy, (startX, startY), (endX, endY), 
+                                      COLORS['Green'], thickness=2)
+
+        cv2.putText(image_copy, label, (startX, startY-5), 
+                   fontFace=cv2.FONT_HERSHEY_SIMPLEX, fontScale=0.5,
+                   color=COLORS['Green'], thickness=2)
+
+        # Now cut out the rectangle from the main image
+        sub_image_name = '{} (subimg-{})'.format(label, i) 
+        cut_image = image[startY:endY, startX:endX]
+        # cut_image = image[startX:startY, endX:endY]
+        sub_images[sub_image_name] = cut_image
+
+    # Return the annotated main image and the sub images
+    return image_copy, sub_images
+
+def show_main_and_sub_images(dtype_image_id, image, sub_images):
+    ''' Show the annotated main and sub-images '''
+    aap = AspectAwarePreprocessor(256, 256)
+    # Show main image
+    cv2.namedWindow(dtype_image_id)
+    cv2.moveWindow(dtype_image_id, IMAGE_SHOW_WINDOW_X, IMAGE_SHOW_WINDOW_Y)
+    cv2.imshow(dtype_image_id, image)
+
+    # Show cut images
+    move_x = IMAGE_SHOW_WINDOW_X + image.shape[1]
+    move_y = IMAGE_SHOW_WINDOW_Y 
+    preproc_x = IMAGE_SHOW_WINDOW_X + 500
+    preproc_y = IMAGE_SHOW_WINDOW_Y  + 500
+    for i, (sub_img_id, sub_image) in enumerate(sub_images.items()):
+        logging.info('Showing sub-image: {}'.format(sub_img_id))
+        cv2.namedWindow(sub_img_id)
+        # Calculate the window move locaiton.
+        # keep adding the width of the sub-image to the move_x co-ord
+        move_x += sub_image.shape[1] + 125
+        print(move_x)
+        cv2.moveWindow(sub_img_id, move_x, move_y)
+        cv2.imshow(sub_img_id, sub_image)
+
+        # If set, show the pre-processed images as well
+        if SHOW_PREPROCESS:
+            preproc_name = 'preproc {}'.format(sub_img_id) 
+            preproc_img = aap.preprocess(sub_image)
+            cv2.namedWindow(preproc_name)
+            preproc_x += 256
+            cv2.moveWindow(preproc_name, preproc_x, preproc_y)
+            cv2.imshow(preproc_name, aap.preprocess(sub_image))
+
+
+
+def show_images_detailed(csv_info, images_dict):
     for (image_id, image_params) in images_dict.items():
         logging.info('showing image: {}'.format(image_id))
         # Format set type + image_id
@@ -116,32 +186,23 @@ def show_images_with_bbox(csv_info, images_dict):
         # bounding_boxes = ['Man,0.000000,0.339869,0.431250,0.975000', 'Mobile phone,0.360411,0.628385,0.348125,0.658750', 'Human face,0.130719,0.212885,0.510000,0.593750']
 
         # Read image and display it
-        cv2.namedWindow(dtype_image_id)
         image_full_fn = images_dict[image_id]['full_path']
         image = cv2.imread(image_full_fn)
-        for bbox_str in bounding_boxes:
-            label, startX, endX, startY, endY =       \
-                                      get_denormalized_bbox(image, bbox_str)
-            cv2.rectangle(image, (startX, startY), (endX, endY), 
-                                          COLORS['Green'], thickness=2)
-
-            cv2.putText(image, label, (startX, startY-5), 
-                       fontFace=cv2.FONT_HERSHEY_SIMPLEX, fontScale=0.5,
-                       color=COLORS['Green'], thickness=2)
-
-
-        cv2.moveWindow(dtype_image_id, 500, 100)
-        cv2.imshow(dtype_image_id, image)
-
+        # Get annoted image and all of the sub-images
+        image, sub_images = get_main_and_sub_images(image, bounding_boxes)
+        # Now show the main and sub images
+        show_main_and_sub_images(dtype_image_id, image, sub_images)
         print('Press \'n\' for next image. Image will auto forward in 10 sec')
-        if cv2.waitKey(10000) == ord('n'):
+        if cv2.waitKey(25000) == ord('n'):
             continue
+            cv2.destroyAllWindows()
+        cv2.destroyAllWindows()
 
 def main():
     ''' Main program '''
     # init Stuff
     args = parse_args()
-    csv_info = oi_utils.challenge_csv_info()
+    csv_info = oi_utils.challenge_csv_info(load_from_pickle = True)
 
     # Now process
     images_list = [x for x in args['images'].split(',')]
@@ -151,7 +212,7 @@ def main():
         logging.error('Specified images do not exist in any of the tran/va/test'
                       ' directories. Noting to do. Exiting')
     else:
-        show_images_with_bbox(csv_info, images_full_fn)
+        show_images_detailed(csv_info, images_full_fn)
 
 if __name__ == '__main__':
     main()

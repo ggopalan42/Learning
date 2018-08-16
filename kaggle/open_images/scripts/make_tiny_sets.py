@@ -1,5 +1,7 @@
 #! /usr/bin/env python
 
+''' This program creates tiny datasets from the main open_images dataset '''
+
 import os
 import sys
 import shutil
